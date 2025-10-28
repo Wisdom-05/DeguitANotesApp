@@ -3,7 +3,9 @@ package ph.edu.comteq.notetakingapp
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -30,5 +32,39 @@ interface NoteDao {
 
     @Query("SELECT * FROM notes WHERE title LIKE '%' || :searchQuery || '%' OR content LIKE '%' || :searchQuery || '%' ORDER BY id DESC")
     fun searchNotes(searchQuery: String): Flow<List<Note>>
+
+    //connect a note to a tag
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertNoteTagCrossRef(crossRef: NoteTagCrossRef)
+    //disconnect note from a tag
+    @Delete
+    suspend fun deleteNoteTagCrossRef(crossRef: NoteTagCrossRef)
+    // get all notes with their tags
+    @Transaction
+    @Query("SELECT * FROM notes ORDER BY updated_at DESC")
+    fun getNotesWithTags(): Flow<List<NoteWithTags>>
+    // get a note with its tags
+    @Transaction
+    @Query("SELECT * FROM notes WHERE id = :id")
+    fun getNotesWithTags(id: Int): NoteWithTags?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTag(tag: Tag): Long
+
+    @Update
+    suspend fun updateTag(tag: Tag)
+
+    @Delete
+    suspend fun deleteTag(tag: Tag)
+
+    @Query("SELECT * FROM tags ORDER BY name ASC")
+    fun getAllTags(): Flow<List<Tag>>
+
+    @Query("SELECT * FROM tags WHERE id = :id")
+    suspend fun getTagById(id: Int): Tag?
+
+
+
+
 }
 
