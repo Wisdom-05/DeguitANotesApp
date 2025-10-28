@@ -7,28 +7,36 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.FloatingActionButtonDefaults.elevation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -37,7 +45,7 @@ import androidx.compose.ui.unit.sp
 import ph.edu.comteq.notetakingapp.ui.theme.NoteTakingAppTheme
 
 class MainActivity : ComponentActivity() {
-    private val viewModel: NoteViewModel by viewModels() // fixed typo
+    private val viewModel: NoteViewModel by viewModels()
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,17 +53,103 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             NoteTakingAppTheme {
+                var searchQuery by remember { mutableStateOf("") }
+                var isSearchActive by remember { mutableStateOf(false) }
+                val notes by viewModel.allNotes.collectAsState(initial = emptyList())
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        TopAppBar(
-                            title = { Text("Notes") },
-                            actions = {
-                                IconButton(onClick = { /* TODO: search or add action */ }) {
-                                    Icon(Icons.Filled.Search, contentDescription = "Search")
+                        if(isSearchActive){
+                            //search mode
+                            SearchBar(
+                                modifier = Modifier.fillMaxWidth(),
+                                inputField = {
+                                    SearchBarDefaults.InputField(
+                                        query = searchQuery,
+                                        onQueryChange = { searchQuery = it
+                                                        viewModel.updateSearchQuery( it)},
+                                        onSearch = {},
+                                        expanded = true,
+                                        onExpandedChange = {
+                                            if (!it) {
+                                                isSearchActive = false
+                                                searchQuery = ""
+                                                viewModel.clearSearch()
+                                            }
+                                        },
+                                        placeholder = {Text("Search notes...")},
+                                        leadingIcon = {
+                                            IconButton(onClick = {
+                                                isSearchActive = false
+                                                searchQuery = ""
+                                                viewModel.clearSearch()
+                                            }) {
+                                                Icon(
+                                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                                    contentDescription = "Close search"
+                                                )
+                                            }
+                                        },
+                                        trailingIcon = {
+                                            if (searchQuery.isNotEmpty()) {
+                                                IconButton(onClick = {
+                                                    searchQuery = ""
+                                                    viewModel.clearSearch()
+                                                }) {
+                                                    Icon(
+                                                        Icons.Default.Clear,
+                                                        contentDescription = "Clear search"
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    )
+                                },
+                                expanded = true,
+                                onExpandedChange = {
+                                    if (!it) {
+                                        isSearchActive = false
+                                        searchQuery = ""
+                                        viewModel.clearSearch()
+                                    }
+                                },
+                                content = {
+                                    //content shown inside the search view(results)
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(16.dp)
+                                    ) {
+                                        if (notes.isEmpty()) {
+                                            item {
+                                                Text(
+                                                    text = "No notes found",
+                                                    modifier = Modifier.padding(16.dp),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    color = MaterialTheme.colorScheme.onSurface.copy(
+                                                        alpha = 0.6f
+                                                    )
+                                                )
+                                            }
+                                        } else {
+                                            items(notes) { note ->
+                                                NoteCard(note = note)
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
+                        else {
+                            TopAppBar(
+                                title = { Text("Notes") },
+                                actions = {
+                                    IconButton(onClick = { isSearchActive = true }) {
+                                        Icon(Icons.Filled.Search, contentDescription = "Search")
+                                    }
+                                }
+                            )
+                        }
                     },
                     floatingActionButton = {
                         FloatingActionButton(onClick = { /* TODO: open add note screen */ }) {
@@ -72,6 +166,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+private fun NoteViewModel.searchNotes(searchQuery: String) {}
 
 @Composable
 fun NotesListScreen(viewModel: NoteViewModel, modifier: Modifier = Modifier) {
